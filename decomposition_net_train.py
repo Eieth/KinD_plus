@@ -1,11 +1,14 @@
 # coding: utf-8
 from __future__ import print_function
-import os, time, random
-#import tensorflow as tf
+
+import os
+import random
+import time
+
+# import tensorflow as tf
 import tensorflow.compat.v1 as tf
+
 tf.disable_v2_behavior()
-from PIL import Image
-import numpy as np
 from utils import *
 from model import *
 from glob import glob
@@ -15,7 +18,11 @@ parser = argparse.ArgumentParser(description='')
 parser.add_argument('--batch_size', dest='batch_size', type=int, default=10, help='number of samples in one batch')
 parser.add_argument('--patch_size', dest='patch_size', type=int, default=48, help='patch size')
 parser.add_argument('--train_data_dir', dest='train_data_dir', default='./LOLdataset/our485', help='directory for training inputs')
-parser.add_argument('--train_result_dir', dest='train_result_dir', default='./decom_net_train_result/', help='directory for decomnet training results')
+parser.add_argument('--train_result_dir', dest='train_result_dir', default='./decom_net_train_result', help='directory for decomnet training results')
+parser.add_argument('--omegas', dest='omegas', type=str, default=None, help='directory for decomnet training results')
+
+
+
 
 args = parser.parse_args()
 
@@ -72,9 +79,16 @@ i_mutual_loss = mutual_i_loss(I_low, I_high)
 i_input_mutual_loss_high = mutual_i_input_loss(I_high, input_high)
 i_input_mutual_loss_low = mutual_i_input_loss(I_low, input_low)
 
-loss_Decom = 1*recon_loss_high + 1*recon_loss_low \
-               + 0.009 * equal_R_loss + 0.2*i_mutual_loss \
-             + 0.15* i_input_mutual_loss_high + 0.15* i_input_mutual_loss_low
+omegas = args.omegas if args.omegas is not None else '1,0.009,0.2,0.15'
+omegas_list = omegas.split(',')
+
+
+loss_Decom = float(omegas_list[0]) * recon_loss_high \
+             + float(omegas_list[0]) * recon_loss_low \
+             + float(omegas_list[1]) * equal_R_loss \
+             + float(omegas_list[2]) * i_mutual_loss \
+             + float(omegas_list[3]) * i_input_mutual_loss_high \
+             + float(omegas_list[3]) * i_input_mutual_loss_low
 
 ###
 lr = tf.placeholder(tf.float32, name='learning_rate')
@@ -119,7 +133,7 @@ for idx in range(len(eval_low_data_name)):
 epoch = 2500
 learning_rate = 0.0001
 
-sample_dir = args.train_result_dir
+sample_dir = os.path.join(args.train_result_dir, omegas) + '/'
 if not os.path.isdir(sample_dir):
     os.makedirs(sample_dir)
 
@@ -167,8 +181,9 @@ for epoch in range(start_epoch, epoch):
         _, loss = sess.run([train_op, train_loss], feed_dict={input_low: batch_input_low, \
                                                               input_high: batch_input_high, \
                                                               lr: learning_rate})
-        print("%s Epoch: [%2d] [%4d/%4d] time: %4.4f, loss: %.6f" \
-              % (train_phase, epoch + 1, batch_id + 1, numBatch, time.time() - start_time, loss))
+        if numBatch == batch_id + 1:
+            print("%s Epoch: [%2d]  time: %4.4f, loss: %.6f" \
+                  % (train_phase, epoch + 1, time.time() - start_time, loss))
         iter_num += 1
     if (epoch + 1) % eval_every_epoch == 0:
         print("[*] Evaluating for phase %s / epoch %d..." % (train_phase, epoch + 1))
@@ -180,7 +195,7 @@ for epoch in range(start_epoch, epoch):
             input_low_eval = np.expand_dims(eval_high_data[idx], axis=0)
             result_11, result_22 = sess.run([output_R_high, output_I_high], feed_dict={input_high: input_low_eval})
             save_images(os.path.join(sample_dir, 'high_%d_%d.png' % ( idx + 1, epoch + 1)), result_11, result_22)
-         
-    saver.save(sess, checkpoint_dir + 'model.ckpt')
+
+    saver.save(sess, sample_dir + 'model.ckpt')
 
 print("[*] Finish training for phase %s." % train_phase)

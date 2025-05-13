@@ -1,18 +1,30 @@
 # coding: utf-8
 from __future__ import print_function
+
 import os
 import time
-import random
-from PIL import Image
-#import tensorflow as tf
+
+# import tensorflow as tf
 import tensorflow.compat.v1 as tf
+
 tf.disable_v2_behavior()
-import numpy as np
 from utils import *
 from model import *
 from glob import glob
 from skimage import color,filters
 import argparse
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # 为每个GPU设置内存增长
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        # 内存增长设置必须在程序启动时进行，否则会报错
+        print(e)
+
+
 
 parser = argparse.ArgumentParser(description='')
 

@@ -3,7 +3,6 @@ import tensorflow.compat.v1 as tf
 import tf_slim as slim
 #import tensorflow.contrib.slim as slim
 #from tf_slim import layers as tf_layers
-import tf_slim as tf_layers
 
 def illu_attention_3_M(input_feature, input_i, name):
   kernel_size = 3
